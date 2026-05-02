@@ -1,41 +1,57 @@
--- Blueblurhub SS: Server-Side Bridge
+-- Blueblurhub SS: Server-Side Bridge (Fixed)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 
--- Whitelist: add authorized player UserIds here
+-- Whitelist: your UserId(s)
 local WHITELIST = {
-    [10149136525] = true, -- replace with your actual UserId
+    [1234567] = true, -- replace with your UserId
 }
 
 local Remote = Instance.new("RemoteEvent")
-Remote.Name = "MangoRemote" -- matches client FindFirstChild("MangoRemote")
+Remote.Name = "MangoRemote"
 Remote.Parent = ReplicatedStorage
 
 local moduleCache = {}
 
+-- Loadstring fix: fetch the script as a string via HTTP, then run it
+local function httpLoadstring(url)
+    local ok, body = pcall(function()
+        return HttpService:GetAsync(url)
+    end)
+    if not ok then
+        warn("Blueblurhub SS: HTTP fetch failed | " .. tostring(body))
+        return nil
+    end
+    local fn, err = loadstring(body)
+    if not fn then
+        warn("Blueblurhub SS: loadstring compile error | " .. tostring(err))
+        return nil
+    end
+    return fn
+end
+
 Remote.OnServerEvent:Connect(function(player, action, data)
 
-    -- Block non-whitelisted players immediately
+    -- Auth check
     if not WHITELIST[player.UserId] then
         warn("Blueblurhub SS: Unauthorized attempt by " .. player.Name)
         return
     end
 
+    -- ACTION: REQUIRE (runs a catalog ModuleScript by asset ID)
     if action == "REQUIRE" then
         local assetId = tonumber(data)
-
         if not assetId then
-            warn("Blueblurhub SS: Invalid asset ID from " .. player.Name)
+            warn("Blueblurhub SS: Invalid asset ID | " .. tostring(data))
             return
         end
 
-        print("Blueblurhub SS: " .. player.Name .. " executing module " .. assetId)
+        print("Blueblurhub SS: Requiring module " .. assetId)
 
-        -- Use cache to avoid re-requiring the same module repeatedly
         if not moduleCache[assetId] then
-            local success, result = pcall(require, assetId)
-            if not success then
-                warn("Blueblurhub SS: Failed to require " .. assetId .. " | " .. tostring(result))
+            local ok, result = pcall(require, assetId)
+            if not ok then
+                warn("Blueblurhub SS: require() failed | " .. tostring(result))
                 return
             end
             moduleCache[assetId] = result
@@ -43,26 +59,60 @@ Remote.OnServerEvent:Connect(function(player, action, data)
 
         local mod = moduleCache[assetId]
 
-        -- Safely call the module whether it expects a player, a name, or nothing
         if type(mod) == "function" then
-            local ok, err = pcall(function()
-                -- Try calling with player object first, fall back to name, then no args
-                local s = pcall(mod, player)
-                if not s then
-                    local s2 = pcall(mod, player.Name)
-                    if not s2 then pcall(mod) end
+            -- Try calling with player, then player.Name, then no args
+            pcall(function()
+                if not pcall(mod, player) then
+                    if not pcall(mod, player.Name) then
+                        pcall(mod)
+                    end
                 end
             end)
-            if not ok then
-                warn("Blueblurhub SS: Module execution error | " .. tostring(err))
+        elseif type(mod) == "table" then
+            -- Some modules return a table with an init/run/execute method
+            for _, key in ipairs({"init", "run", "execute", "load", "start"}) do
+                if type(mod[key]) == "function" then
+                    pcall(mod[key], mod, player)
+                    break
+                end
             end
         else
-            warn("Blueblurhub SS: Module " .. assetId .. " did not return a callable function")
+            warn("Blueblurhub SS: Module " .. assetId .. " returned: " .. type(mod))
+        end
+
+    -- ACTION: LOADSTRING (runs a raw Lua string or a script from a URL)
+    elseif action == "LOADSTRING" then
+        if type(data) ~= "string" or data == "" then
+            warn("Blueblurhub SS: Empty loadstring data")
+            return
+        end
+
+        local fn
+
+        -- If it looks like a URL, fetch it first
+        if data:sub(1, 4) == "http" then
+            print("Blueblurhub SS: Fetching remote script from URL...")
+            fn = httpLoadstring(data)
+        else
+            -- Run it as a raw Lua string
+            local err
+            fn, err = loadstring(data)
+            if not fn then
+                warn("Blueblurhub SS: loadstring error | " .. tostring(err))
+                return
+            end
+        end
+
+        if fn then
+            local ok, err = pcall(fn, player)
+            if not ok then
+                warn("Blueblurhub SS: Script runtime error | " .. tostring(err))
+            end
         end
 
     else
-        warn("Blueblurhub SS: Unknown action '" .. tostring(action) .. "' from " .. player.Name)
+        warn("Blueblurhub SS: Unknown action '" .. tostring(action) .. "'")
     end
 end)
 
-print("Blueblurhub SS: Bridge online and listening.")
+print("Blueblurhub SS: Bridge online.")
