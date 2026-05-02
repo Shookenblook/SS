@@ -1,195 +1,200 @@
--- Blueblurhub - Private Backdoor
+-- Blueblurhub - Private Backdoor (Patrihub-style)
 local G2L = {}
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 
--- Main UI Setup
+-- ScreenGui
 G2L["1"] = Instance.new("ScreenGui", LP:WaitForChild("PlayerGui"))
 G2L["1"].Name = "Blueblurhub"
 G2L["1"].ResetOnSpawn = false
+G2L["1"].ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Main Frame
-G2L["Main"] = Instance.new("Frame", G2L["1"])
-G2L["Main"].Size = UDim2.new(0, 420, 0, 300)
-G2L["Main"].Position = UDim2.new(0.5, -210, 0.5, -150)
-G2L["Main"].BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-G2L["Main"].BorderSizePixel = 0
-Instance.new("UICorner", G2L["Main"]).CornerRadius = UDim.new(0, 8)
+G2L["2"] = Instance.new("Frame", G2L["1"])
+G2L["2"].BorderSizePixel = 0
+G2L["2"].BackgroundColor3 = Color3.fromRGB(27, 28, 33)
+G2L["2"].Size = UDim2.new(0, 464, 0, 304)
+G2L["2"].Position = UDim2.new(0.5, -232, 0.5, -152)
+G2L["2"].BorderColor3 = Color3.fromRGB(0, 0, 0)
+Instance.new("UICorner", G2L["2"])
 
--- Header
-G2L["Header"] = Instance.new("Frame", G2L["Main"])
-G2L["Header"].Size = UDim2.new(1, 0, 0, 34)
-G2L["Header"].BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-G2L["Header"].BorderSizePixel = 0
-Instance.new("UICorner", G2L["Header"]).CornerRadius = UDim.new(0, 8)
+-- Title Bar
+G2L["3"] = Instance.new("Frame", G2L["2"])
+G2L["3"].BorderSizePixel = 0
+G2L["3"].BackgroundColor3 = Color3.fromRGB(26, 27, 32)
+G2L["3"].Size = UDim2.new(0, 451, 0, 23)
+G2L["3"].Position = UDim2.new(0.01509, 0, 0.01974, 0)
+G2L["3"].Name = "TitleBar"
+Instance.new("UICorner", G2L["3"])
+local titleStroke = Instance.new("UIStroke", G2L["3"])
+titleStroke.Color = Color3.fromRGB(98, 98, 98)
 
--- "Blueblurhub" label (blue)
-G2L["TitleBlue"] = Instance.new("TextLabel", G2L["Header"])
-G2L["TitleBlue"].Size = UDim2.new(0, 100, 1, 0)
-G2L["TitleBlue"].Position = UDim2.new(0, 12, 0, 0)
-G2L["TitleBlue"].Text = "Blueblurhub"
-G2L["TitleBlue"].TextColor3 = Color3.fromRGB(0, 180, 255)
-G2L["TitleBlue"].Font = Enum.Font.GothamBold
-G2L["TitleBlue"].TextSize = 13
-G2L["TitleBlue"].TextXAlignment = Enum.TextXAlignment.Left
-G2L["TitleBlue"].BackgroundTransparency = 1
+-- Title Label (RichText)
+G2L["6"] = Instance.new("TextLabel", G2L["3"])
+G2L["6"].BorderSizePixel = 0
+G2L["6"].TextSize = 16
+G2L["6"].BackgroundTransparency = 1
+G2L["6"].FontFace = Font.new([[rbxasset://fonts/families/GothamSSm.json]], Enum.FontWeight.Medium, Enum.FontStyle.Italic)
+G2L["6"].TextColor3 = Color3.fromRGB(255, 255, 255)
+G2L["6"].RichText = true
+G2L["6"].Size = UDim2.new(0, 300, 0, 23)
+G2L["6"].Position = UDim2.new(0.03, 0, 0, 0)
+G2L["6"].Text = [[<font color="#00b4ff">Blueblurhub</font> - <font color="#ffffff">Private Backdoor</font>]]
+G2L["6"].TextXAlignment = Enum.TextXAlignment.Left
 
--- "Private Backdoor" label (gray)
-G2L["TitleGray"] = Instance.new("TextLabel", G2L["Header"])
-G2L["TitleGray"].Size = UDim2.new(1, -160, 1, 0)
-G2L["TitleGray"].Position = UDim2.new(0, 118, 0, 0)
-G2L["TitleGray"].Text = "Private Backdoor"
-G2L["TitleGray"].TextColor3 = Color3.fromRGB(140, 140, 140)
-G2L["TitleGray"].Font = Enum.Font.Gotham
-G2L["TitleGray"].TextSize = 13
-G2L["TitleGray"].TextXAlignment = Enum.TextXAlignment.Left
-G2L["TitleGray"].BackgroundTransparency = 1
+-- Close Button (X image)
+G2L["13"] = Instance.new("ImageButton", G2L["2"])
+G2L["13"].BackgroundTransparency = 1
+G2L["13"].ZIndex = 2
+G2L["13"].Image = [[rbxassetid://3926305904]]
+G2L["13"].ImageRectSize = Vector2.new(24, 24)
+G2L["13"].ImageRectOffset = Vector2.new(284, 4)
+G2L["13"].Size = UDim2.new(0, 24, 0, 24)
+G2L["13"].Position = UDim2.new(0.92026, 0, 0.01777, 0)
+G2L["13"].Name = "CloseButton"
 
--- Close Button
-G2L["Close"] = Instance.new("TextButton", G2L["Header"])
-G2L["Close"].Size = UDim2.new(0, 24, 0, 24)
-G2L["Close"].Position = UDim2.new(1, -30, 0, 5)
-G2L["Close"].Text = "X"
-G2L["Close"].TextColor3 = Color3.fromRGB(170, 170, 170)
-G2L["Close"].BackgroundTransparency = 1
-G2L["Close"].Font = Enum.Font.GothamBold
-G2L["Close"].TextSize = 13
+-- Executor Frame
+G2L["8"] = Instance.new("Frame", G2L["2"])
+G2L["8"].BorderSizePixel = 0
+G2L["8"].BackgroundColor3 = Color3.fromRGB(18, 20, 23)
+G2L["8"].Size = UDim2.new(0, 451, 0, 215)
+G2L["8"].Position = UDim2.new(0.01509, 0, 0.11842, 0)
+G2L["8"].Name = "Executor"
+Instance.new("UICorner", G2L["8"])
+local execStroke = Instance.new("UIStroke", G2L["8"])
+execStroke.Color = Color3.fromRGB(98, 98, 98)
 
--- Mode label (shows current mode: REQUIRE / LOADSTRING)
-G2L["ModeLabel"] = Instance.new("TextLabel", G2L["Main"])
-G2L["ModeLabel"].Size = UDim2.new(0.94, 0, 0, 16)
-G2L["ModeLabel"].Position = UDim2.new(0.03, 0, 0, 42)
+-- Watermark image (centered, semi-transparent)
+G2L["12"] = Instance.new("ImageLabel", G2L["8"])
+G2L["12"].BorderSizePixel = 0
+G2L["12"].BackgroundTransparency = 1
+G2L["12"].ImageTransparency = 0.78
+G2L["12"].Image = [[rbxassetid://342190201]]
+G2L["12"].Size = UDim2.new(0, 150, 0, 150)
+G2L["12"].AnchorPoint = Vector2.new(0.5, 0.5)
+G2L["12"].Position = UDim2.new(0.5, 0, 0.5, 0)
+G2L["12"].ScaleType = Enum.ScaleType.Fit
+
+-- Mode label (top-right of executor)
+G2L["ModeLabel"] = Instance.new("TextLabel", G2L["8"])
+G2L["ModeLabel"].Size = UDim2.new(0, 200, 0, 16)
+G2L["ModeLabel"].Position = UDim2.new(1, -205, 0, 2)
+G2L["ModeLabel"].BackgroundTransparency = 1
 G2L["ModeLabel"].Text = "MODE: LOADSTRING"
 G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
 G2L["ModeLabel"].Font = Enum.Font.GothamBold
 G2L["ModeLabel"].TextSize = 10
 G2L["ModeLabel"].TextXAlignment = Enum.TextXAlignment.Right
-G2L["ModeLabel"].BackgroundTransparency = 1
+G2L["ModeLabel"].ZIndex = 3
 
--- Code Box
-G2L["CodeBox"] = Instance.new("TextBox", G2L["Main"])
-G2L["CodeBox"].Size = UDim2.new(0.94, 0, 0, 90)
-G2L["CodeBox"].Position = UDim2.new(0.03, 0, 0, 58)
-G2L["CodeBox"].BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-G2L["CodeBox"].Text = "-- paste require() or loadstring script here"
-G2L["CodeBox"].TextColor3 = Color3.fromRGB(136, 136, 136)
-G2L["CodeBox"].Font = Enum.Font.Code
-G2L["CodeBox"].TextSize = 12
-G2L["CodeBox"].TextXAlignment = Enum.TextXAlignment.Left
-G2L["CodeBox"].TextYAlignment = Enum.TextYAlignment.Top
-G2L["CodeBox"].ClearTextOnFocus = false
-G2L["CodeBox"].MultiLine = true
-Instance.new("UICorner", G2L["CodeBox"]).CornerRadius = UDim.new(0, 4)
+-- TextBox
+G2L["b"] = Instance.new("TextBox", G2L["8"])
+G2L["b"].CursorPosition = -1
+G2L["b"].TextXAlignment = Enum.TextXAlignment.Left
+G2L["b"].TextYAlignment = Enum.TextYAlignment.Top
+G2L["b"].BorderSizePixel = 0
+G2L["b"].TextSize = 15
+G2L["b"].TextColor3 = Color3.fromRGB(205, 205, 205)
+G2L["b"].BackgroundTransparency = 1
+G2L["b"].FontFace = Font.new([[rbxasset://fonts/families/Inconsolata.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+G2L["b"].Size = UDim2.new(0, 444, 0, 200)
+G2L["b"].Position = UDim2.new(0, 4, 0, 16)
+G2L["b"].Text = ""
+G2L["b"].PlaceholderText = "-- paste require(id) or loadstring script here"
+G2L["b"].PlaceholderColor3 = Color3.fromRGB(70, 72, 80)
+G2L["b"].ClearTextOnFocus = false
+G2L["b"].MultiLine = true
+G2L["b"].ZIndex = 2
 
--- Asset Image (centered)
-G2L["Asset"] = Instance.new("ImageLabel", G2L["Main"])
-G2L["Asset"].Size = UDim2.new(0, 110, 0, 110)
-G2L["Asset"].Position = UDim2.new(0.5, -55, 0, 155)
-G2L["Asset"].Image = "rbxassetid://342190201"
-G2L["Asset"].BackgroundTransparency = 1
-G2L["Asset"].ScaleType = Enum.ScaleType.Fit
-
--- Button helper
-local function createBtn(text, pos, size)
-    local b = Instance.new("TextButton", G2L["Main"])
+-- Button factory
+local function makeBtn(parent, text, pos, size)
+    local b = Instance.new("TextButton", parent)
+    b.TextSize = 15
+    b.AutoButtonColor = false
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.BackgroundColor3 = Color3.fromRGB(18, 20, 23)
+    b.FontFace = Font.new([[rbxasset://fonts/families/GothamSSm.json]], Enum.FontWeight.Medium, Enum.FontStyle.Normal)
     b.Size = size
     b.Position = pos
     b.Text = text
-    b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.Font = Enum.Font.GothamMedium
-    b.TextSize = 13
     b.BorderSizePixel = 0
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+    local c = Instance.new("UICorner", b)
+    c.CornerRadius = UDim.new(0, 6)
+    local s = Instance.new("UIStroke", b)
+    s.Transparency = 0.5
+    s.Color = Color3.fromRGB(98, 98, 98)
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     return b
 end
 
-local iconSize = UDim2.new(0, 32, 0, 32)
-
-local Exec  = createBtn("Execute", UDim2.new(0.03, 0, 1, -42), UDim2.new(0, 100, 0, 32))
-local Clear = createBtn("Clear",   UDim2.new(0.03, 104, 1, -42), UDim2.new(0, 100, 0, 32))
-local Eye   = createBtn("👁",      UDim2.new(1, -148, 1, -42), iconSize)
-local Ref1  = createBtn("↺",      UDim2.new(1, -112, 1, -42), iconSize)
-local Ref2  = createBtn("⟳",      UDim2.new(1, -76,  1, -42), iconSize)
-local RC    = createBtn("RC",      UDim2.new(1, -40,  1, -42), iconSize)
-RC.TextColor3 = Color3.fromRGB(0, 180, 255)
-RC.BackgroundColor3 = Color3.fromRGB(0, 40, 60)
-
---- Dragging Logic ---
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-    local delta = input.Position - dragStart
-    G2L["Main"].Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-G2L["Header"].InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true; dragStart = input.Position; startPos = G2L["Main"].Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-G2L["Header"].InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then update(input) end
-end)
-
---- Smart Execute Logic ---
-local function detectAndFire(text)
-    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("MangoRemote")
-    if not remote then
-        warn("Blueblurhub: Bridge not found!")
-        return
-    end
-
-    text = text:match("^%s*(.-)%s*$") -- trim whitespace
-
-    if text == "" or text:sub(1, 2) == "--" then
-        warn("Blueblurhub: Nothing to execute.")
-        return
-    end
-
-    -- Check if it's a plain require(id) call
-    local requireId = text:match("^require%((%d+)%)")
-    if requireId then
-        G2L["ModeLabel"].Text = "MODE: REQUIRE"
-        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
-        remote:FireServer("REQUIRE", requireId)
-        return
-    end
-
-    -- Check if it's a require with a method call e.g. require(123456).Method("arg")
-    local requireIdMethod = text:match("^require%((%d+)%)")
-    if requireIdMethod then
-        G2L["ModeLabel"].Text = "MODE: REQUIRE"
-        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
-        remote:FireServer("REQUIRE", requireIdMethod)
-        return
-    end
-
-    -- Check if it's a raw URL (for HTTP loadstring)
-    if text:sub(1, 4) == "http" then
-        G2L["ModeLabel"].Text = "MODE: LOADSTRING (URL)"
-        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 255, 128)
-        remote:FireServer("LOADSTRING", text)
-        return
-    end
-
-    -- Everything else = raw Lua loadstring
-    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
-    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
-    remote:FireServer("LOADSTRING", text)
+local function makeIconBtn(parent, imageId, pos, rectOffset, rectSize)
+    local b = Instance.new("TextButton", parent)
+    b.TextTransparency = 1
+    b.Text = ""
+    b.AutoButtonColor = false
+    b.BackgroundColor3 = Color3.fromRGB(18, 20, 23)
+    b.Size = UDim2.new(0, 34, 0, 34)
+    b.Position = pos
+    b.BorderSizePixel = 0
+    local c = Instance.new("UICorner", b)
+    c.CornerRadius = UDim.new(0, 6)
+    local s = Instance.new("UIStroke", b)
+    s.Transparency = 0.5
+    s.Color = Color3.fromRGB(98, 98, 98)
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    local img = Instance.new("ImageLabel", b)
+    img.BackgroundTransparency = 1
+    img.AnchorPoint = Vector2.new(0.5, 0.5)
+    img.Position = UDim2.new(0.5, 0, 0.5, 0)
+    img.Size = UDim2.new(0, 22, 0, 22)
+    img.Image = imageId
+    if rectOffset then img.ImageRectOffset = rectOffset end
+    if rectSize  then img.ImageRectSize  = rectSize  end
+    return b
 end
 
--- Auto-update mode label as user types
-G2L["CodeBox"]:GetPropertyChangedSignal("Text"):Connect(function()
-    local text = G2L["CodeBox"].Text:match("^%s*(.-)%s*$")
-    if text:match("^require%((%d+)%)") then
+-- Execute button
+local Exec = makeBtn(G2L["2"], "Execute",
+    UDim2.new(0.01472, 0, 0.89009, 0),
+    UDim2.new(0, 130, 0, 33))
+
+-- Clear button
+local Clear = makeBtn(G2L["2"], "Clear",
+    UDim2.new(0.31644, 0, 0.89009, 0),
+    UDim2.new(0, 99, 0, 33))
+
+-- Hide button (eye icon)
+local HideBtn = makeIconBtn(G2L["2"],
+    [[rbxassetid://3926307971]],
+    UDim2.new(0.63206, 0, 0.88645, 0),
+    Vector2.new(84, 44), Vector2.new(36, 36))
+
+-- RE-execute button (refresh icon)
+local ReExecBtn = makeIconBtn(G2L["2"],
+    [[rbxassetid://7072721335]],
+    UDim2.new(0.72217, 0, 0.88810, 0),
+    nil, nil)
+
+-- Copy button
+local CopyBtn = makeIconBtn(G2L["2"],
+    [[rbxassetid://10734933966]],
+    UDim2.new(0.80891, 0, 0.88974, 0),
+    nil, nil)
+
+-- R6 button
+local R6Btn = makeIconBtn(G2L["2"],
+    [[rbxassetid://4941166750]],
+    UDim2.new(0.89788, 0, 0.88974, 0),
+    nil, nil)
+
+-- =====================
+-- MODE DETECTION
+-- =====================
+local function updateMode(text)
+    text = text:match("^%s*(.-)%s*$") or ""
+    if text:match("^require%(%d+%)") then
         G2L["ModeLabel"].Text = "MODE: REQUIRE"
         G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
     elseif text:sub(1, 4) == "http" then
@@ -199,44 +204,141 @@ G2L["CodeBox"]:GetPropertyChangedSignal("Text"):Connect(function()
         G2L["ModeLabel"].Text = "MODE: LOADSTRING"
         G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
     end
+end
+
+G2L["b"]:GetPropertyChangedSignal("Text"):Connect(function()
+    updateMode(G2L["b"].Text)
 end)
 
-Exec.MouseButton1Click:Connect(function()
-    detectAndFire(G2L["CodeBox"].Text)
-end)
+-- =====================
+-- EXECUTE LOGIC
+-- =====================
+local lastScript = ""
+
+local function doExecute()
+    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("MangoRemote")
+    if not remote then
+        warn("[Blueblurhub] MangoRemote not found! Is the bridge script running?")
+        return
+    end
+
+    local text = G2L["b"].Text:match("^%s*(.-)%s*$")
+    if text == "" then
+        warn("[Blueblurhub] Nothing to execute.")
+        return
+    end
+
+    lastScript = text
+
+    local requireId = text:match("^require%((%d+)%)")
+    if requireId then
+        print("[Blueblurhub] Firing REQUIRE: " .. requireId)
+        remote:FireServer("REQUIRE", requireId)
+        return
+    end
+
+    if text:sub(1, 4) == "http" then
+        print("[Blueblurhub] Firing LOADSTRING (URL)")
+        remote:FireServer("LOADSTRING", text)
+        return
+    end
+
+    print("[Blueblurhub] Firing LOADSTRING (raw Lua)")
+    remote:FireServer("LOADSTRING", text)
+end
+
+-- =====================
+-- BUTTON CONNECTIONS
+-- =====================
+Exec.MouseButton1Click:Connect(doExecute)
 
 Clear.MouseButton1Click:Connect(function()
-    G2L["CodeBox"].Text = ""
-    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
-    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
+    G2L["b"].Text = ""
 end)
 
-G2L["Close"].MouseButton1Click:Connect(function()
+G2L["13"].MouseButton1Click:Connect(function()
     G2L["1"]:Destroy()
 end)
 
--- Eye: toggle GUI visibility
-local guiVisible = true
-Eye.MouseButton1Click:Connect(function()
-    guiVisible = not guiVisible
-    G2L["Main"].Visible = guiVisible
+HideBtn.MouseButton1Click:Connect(function()
+    G2L["2"].Visible = false
 end)
 
--- Ref1: clear and reset
-Ref1.MouseButton1Click:Connect(function()
-    G2L["CodeBox"].Text = ""
-    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
-    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
-end)
-
--- Ref2: re-execute last script
-local lastScript = ""
-Ref2.MouseButton1Click:Connect(function()
-    if lastScript ~= "" then
-        detectAndFire(lastScript)
+-- Shift to show again
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.LeftShift or
+       input.KeyCode == Enum.KeyCode.RightShift then
+        G2L["2"].Visible = true
     end
 end)
 
-Exec.MouseButton1Click:Connect(function()
-    lastScript = G2L["CodeBox"].Text
+ReExecBtn.MouseButton1Click:Connect(function()
+    if lastScript ~= "" then
+        G2L["b"].Text = lastScript
+        doExecute()
+    else
+        warn("[Blueblurhub] No previous script to re-run.")
+    end
 end)
+
+CopyBtn.MouseButton1Click:Connect(function()
+    -- Sets clipboard if supported, otherwise just warns
+    local ok = pcall(function()
+        setclipboard(G2L["b"].Text)
+    end)
+    if not ok then
+        warn("[Blueblurhub] Clipboard not supported in this environment.")
+    end
+end)
+
+R6Btn.MouseButton1Click:Connect(function()
+    local char = LP.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.RigType = Enum.HumanoidRigType.R6 end
+end)
+
+-- =====================
+-- SMOOTH TWEEN DRAG
+-- =====================
+local dragging = false
+local dragInput, mousePos, framePos
+
+G2L["3"].InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = G2L["2"].Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+G2L["3"].InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        TweenService:Create(G2L["2"],
+            TweenInfo.new(0.05, Enum.EasingStyle.Linear),
+            {Position = UDim2.new(
+                framePos.X.Scale, framePos.X.Offset + delta.X,
+                framePos.Y.Scale, framePos.Y.Offset + delta.Y
+            )}
+        ):Play()
+    end
+end)
+
+print("[Blueblurhub] Private Backdoor successfully initialized.")
+
+return G2L["1"]
