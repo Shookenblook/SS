@@ -1,118 +1,322 @@
--- Blueblurhub SS: Server-Side Bridge (Fixed)
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
+-- ============================================================
+--  Blueblurhub SS: Server-Side Bridge (Enhanced)
+--  Place as a Script in ServerScriptService
+-- ============================================================
 
--- Whitelist: your UserId(s)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService       = game:GetService("HttpService")
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+
+-- ============================================================
+--  CONFIG
+-- ============================================================
+
+-- Add your UserId(s) here. To find yours, run in Studio command bar:
+-- print(game:GetService("Players"):GetUserIdFromNameAsync("YourUsername"))
 local WHITELIST = {
-    [1234567] = true, -- replace with your UserId
+    [10149136525] = true, -- REPLACE with your real UserId
 }
 
-local Remote = Instance.new("RemoteEvent")
-Remote.Name = "MangoRemote"
-Remote.Parent = ReplicatedStorage
+-- How many times one player can execute per second before being rate-limited
+local RATE_LIMIT_MAX    = 5
+local RATE_LIMIT_WINDOW = 3 -- seconds
 
-local moduleCache = {}
+-- Max size of a raw loadstring payload (bytes) to prevent abuse
+local MAX_PAYLOAD_SIZE = 50000 -- 50kb
 
--- Loadstring fix: fetch the script as a string via HTTP, then run it
-local function httpLoadstring(url)
-    local ok, body = pcall(function()
-        return HttpService:GetAsync(url)
-    end)
-    if not ok then
-        warn("Blueblurhub SS: HTTP fetch failed | " .. tostring(body))
-        return nil
-    end
-    local fn, err = loadstring(body)
-    if not fn then
-        warn("Blueblurhub SS: loadstring compile error | " .. tostring(err))
-        return nil
-    end
-    return fn
+-- Max number of modules to keep in cache before clearing oldest
+local MAX_CACHE_SIZE = 50
+
+-- ============================================================
+--  SETUP
+-- ============================================================
+
+-- Prevent running on the client if somehow loaded there
+if RunService:IsClient() then
+    error("[Bridge] This script must run on the server only!")
 end
 
-Remote.OnServerEvent:Connect(function(player, action, data)
+-- Create the RemoteEvent
+local Remote = Instance.new("RemoteEvent")
+Remote.Name   = "MangoRemote"
+Remote.Parent = ReplicatedStorage
 
-    -- Auth check
-    if not WHITELIST[player.UserId] then
-        warn("Blueblurhub SS: Unauthorized attempt by " .. player.Name)
-        return
+-- Module cache: { [assetId] = result }
+local moduleCache     = {}
+local moduleCacheOrder = {} -- tracks insertion order for eviction
+
+-- Rate limit tracker: { [userId] = { count, windowStart } }
+local rateLimiter = {}
+
+-- Track players so we clean up rate limit data on leave
+Players.PlayerRemoving:Connect(function(player)
+    rateLimiter[player.UserId] = nil
+end)
+
+-- ============================================================
+--  UTILITIES
+-- ============================================================
+
+-- Friendly log helpers
+local function log(msg)  print("[Bridge] " .. msg) end
+local function err(msg)  warn("[Bridge] " .. msg)  end
+
+-- Check if a player is rate limited
+local function isRateLimited(player)
+    local now  = tick()
+    local uid  = player.UserId
+    local data = rateLimiter[uid]
+
+    if not data then
+        rateLimiter[uid] = { count = 1, windowStart = now }
+        return false
     end
 
-    -- ACTION: REQUIRE (runs a catalog ModuleScript by asset ID)
-    if action == "REQUIRE" then
-        local assetId = tonumber(data)
-        if not assetId then
-            warn("Blueblurhub SS: Invalid asset ID | " .. tostring(data))
-            return
+    if now - data.windowStart > RATE_LIMIT_WINDOW then
+        -- Reset window
+        rateLimiter[uid] = { count = 1, windowStart = now }
+        return false
+    end
+
+    data.count += 1
+    if data.count > RATE_LIMIT_MAX then
+        err("Rate limited: " .. player.Name .. " (" .. data.count .. " calls in " .. RATE_LIMIT_WINDOW .. "s)")
+        return true
+    end
+    return false
+end
+
+-- Evict oldest cache entry if over limit
+local function evictCacheIfNeeded()
+    if #moduleCacheOrder >= MAX_CACHE_SIZE then
+        local oldest = table.remove(moduleCacheOrder, 1)
+        moduleCache[oldest] = nil
+        log("Cache evicted oldest entry: " .. tostring(oldest))
+    end
+end
+
+-- Store a module in cache
+local function cacheModule(assetId, result)
+    evictCacheIfNeeded()
+    moduleCache[assetId] = result
+    table.insert(moduleCacheOrder, assetId)
+end
+
+-- Clear the entire module cache (useful if modules update)
+local function clearCache()
+    moduleCache      = {}
+    moduleCacheOrder = {}
+    log("Module cache cleared.")
+end
+
+-- Safely call a module regardless of what it returns
+local function callModule(mod, player)
+    if type(mod) == "function" then
+        -- Try: player object → player name → no args
+        local ok = pcall(mod, player)
+        if not ok then
+            local ok2 = pcall(mod, player.Name)
+            if not ok2 then
+                local ok3, e3 = pcall(mod)
+                if not ok3 then
+                    err("Module call failed with all arg types: " .. tostring(e3))
+                end
+            end
         end
 
-        print("Blueblurhub SS: Requiring module " .. assetId)
-
-        if not moduleCache[assetId] then
-            local ok, result = pcall(require, assetId)
-            if not ok then
-                warn("Blueblurhub SS: require() failed | " .. tostring(result))
+    elseif type(mod) == "table" then
+        -- Try common entry point method names
+        local tried = {}
+        for _, key in ipairs({"init","run","execute","load","start","Begin","Start","Main","main"}) do
+            if type(mod[key]) == "function" then
+                log("Calling table method: " .. key)
+                local ok, e = pcall(mod[key], mod, player)
+                if not ok then err("Table method error (" .. key .. "): " .. tostring(e)) end
                 return
             end
-            moduleCache[assetId] = result
+            table.insert(tried, key)
+        end
+        -- Last resort: try calling the table itself if it has __call metamethod
+        local ok = pcall(function() mod(player) end)
+        if not ok then
+            err("Module returned table with no callable method. Tried: " .. table.concat(tried, ", "))
         end
 
-        local mod = moduleCache[assetId]
-
-        if type(mod) == "function" then
-            -- Try calling with player, then player.Name, then no args
-            pcall(function()
-                if not pcall(mod, player) then
-                    if not pcall(mod, player.Name) then
-                        pcall(mod)
-                    end
-                end
-            end)
-        elseif type(mod) == "table" then
-            -- Some modules return a table with an init/run/execute method
-            for _, key in ipairs({"init", "run", "execute", "load", "start"}) do
-                if type(mod[key]) == "function" then
-                    pcall(mod[key], mod, player)
-                    break
-                end
-            end
-        else
-            warn("Blueblurhub SS: Module " .. assetId .. " returned: " .. type(mod))
-        end
-
-    -- ACTION: LOADSTRING (runs a raw Lua string or a script from a URL)
-    elseif action == "LOADSTRING" then
-        if type(data) ~= "string" or data == "" then
-            warn("Blueblurhub SS: Empty loadstring data")
-            return
-        end
-
-        local fn
-
-        -- If it looks like a URL, fetch it first
-        if data:sub(1, 4) == "http" then
-            print("Blueblurhub SS: Fetching remote script from URL...")
-            fn = httpLoadstring(data)
-        else
-            -- Run it as a raw Lua string
-            local err
-            fn, err = loadstring(data)
-            if not fn then
-                warn("Blueblurhub SS: loadstring error | " .. tostring(err))
-                return
-            end
-        end
-
+    elseif type(mod) == "string" then
+        -- Some modules return a loadstring-able string
+        log("Module returned a string — attempting loadstring...")
+        local fn, compileErr = loadstring(mod)
         if fn then
-            local ok, err = pcall(fn, player)
-            if not ok then
-                warn("Blueblurhub SS: Script runtime error | " .. tostring(err))
-            end
+            local ok, e = pcall(fn, player)
+            if not ok then err("String module runtime error: " .. tostring(e)) end
+        else
+            err("String module compile error: " .. tostring(compileErr))
         end
 
     else
-        warn("Blueblurhub SS: Unknown action '" .. tostring(action) .. "'")
+        err("Module returned unsupported type: " .. type(mod))
+    end
+end
+
+-- Fetch a script from a URL and compile it
+local function httpLoadstring(url)
+    -- Validate URL looks reasonable
+    if not url:match("^https?://") then
+        err("Invalid URL (must start with http:// or https://): " .. url)
+        return nil
+    end
+
+    log("Fetching URL: " .. url)
+    local ok, body = pcall(function()
+        return HttpService:GetAsync(url, true) -- nocache = true so we always get fresh
+    end)
+
+    if not ok then
+        err("HTTP fetch failed: " .. tostring(body))
+        return nil
+    end
+
+    if type(body) ~= "string" or #body == 0 then
+        err("HTTP response was empty.")
+        return nil
+    end
+
+    if #body > MAX_PAYLOAD_SIZE then
+        err("HTTP response too large (" .. #body .. " bytes). Max is " .. MAX_PAYLOAD_SIZE)
+        return nil
+    end
+
+    local fn, compileErr = loadstring(body)
+    if not fn then
+        err("URL script compile error: " .. tostring(compileErr))
+        return nil
+    end
+
+    return fn
+end
+
+-- ============================================================
+--  ACTIONS
+-- ============================================================
+
+local function handleRequire(player, data)
+    local assetId = tonumber(data)
+    if not assetId then
+        err("Invalid asset ID from " .. player.Name .. ": " .. tostring(data))
+        return
+    end
+
+    log("REQUIRE " .. assetId .. " by " .. player.Name)
+
+    if moduleCache[assetId] then
+        log("Using cached module: " .. assetId)
+        callModule(moduleCache[assetId], player)
+        return
+    end
+
+    local ok, result = pcall(require, assetId)
+    if not ok then
+        err("require(" .. assetId .. ") failed: " .. tostring(result))
+        return
+    end
+
+    cacheModule(assetId, result)
+    log("Module " .. assetId .. " loaded successfully (type: " .. type(result) .. ")")
+    callModule(result, player)
+end
+
+local function handleLoadstring(player, data)
+    if type(data) ~= "string" or #data == 0 then
+        err("Empty loadstring payload from " .. player.Name)
+        return
+    end
+
+    if #data > MAX_PAYLOAD_SIZE then
+        err("Payload too large from " .. player.Name .. " (" .. #data .. " bytes)")
+        return
+    end
+
+    local fn
+
+    if data:match("^https?://") then
+        -- URL mode
+        fn = httpLoadstring(data)
+    else
+        -- Raw Lua mode
+        log("LOADSTRING (raw, " .. #data .. " bytes) by " .. player.Name)
+        local compileErr
+        fn, compileErr = loadstring(data)
+        if not fn then
+            err("Compile error: " .. tostring(compileErr))
+            return
+        end
+    end
+
+    if not fn then return end
+
+    local ok, runtimeErr = pcall(fn, player)
+    if not ok then
+        err("Runtime error from " .. player.Name .. ": " .. tostring(runtimeErr))
+    else
+        log("Script executed successfully for " .. player.Name)
+    end
+end
+
+local function handleClearCache(player)
+    log("Cache clear requested by " .. player.Name)
+    clearCache()
+end
+
+-- ============================================================
+--  MAIN EVENT HANDLER
+-- ============================================================
+
+Remote.OnServerEvent:Connect(function(player, action, data)
+    -- Sanitise inputs
+    if type(action) ~= "string" then
+        err("Non-string action from " .. player.Name)
+        return
+    end
+
+    -- Always log every incoming call for debugging
+    log("← " .. player.Name .. " [" .. player.UserId .. "] | " .. action .. " | " .. tostring(data):sub(1, 80))
+
+    -- Auth check
+    if not WHITELIST[player.UserId] then
+        err("BLOCKED (not whitelisted): " .. player.Name .. " UserId=" .. player.UserId)
+        return
+    end
+
+    -- Rate limit check
+    if isRateLimited(player) then
+        err("BLOCKED (rate limit): " .. player.Name)
+        return
+    end
+
+    -- Route to correct handler
+    if action == "REQUIRE" then
+        handleRequire(player, data)
+
+    elseif action == "LOADSTRING" then
+        handleLoadstring(player, data)
+
+    elseif action == "CLEARCACHE" then
+        handleClearCache(player)
+
+    else
+        err("Unknown action '" .. action .. "' from " .. player.Name)
     end
 end)
 
-print("Blueblurhub SS: Bridge online.")
+-- ============================================================
+--  STARTUP
+-- ============================================================
+
+log("Bridge online. Whitelisted users: " .. (function()
+    local names = {}
+    for id in pairs(WHITELIST) do
+        table.insert(names, tostring(id))
+    end
+    return table.concat(names, ", ")
+end)())
