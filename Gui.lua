@@ -56,12 +56,23 @@ G2L["Close"].BackgroundTransparency = 1
 G2L["Close"].Font = Enum.Font.GothamBold
 G2L["Close"].TextSize = 13
 
+-- Mode label (shows current mode: REQUIRE / LOADSTRING)
+G2L["ModeLabel"] = Instance.new("TextLabel", G2L["Main"])
+G2L["ModeLabel"].Size = UDim2.new(0.94, 0, 0, 16)
+G2L["ModeLabel"].Position = UDim2.new(0.03, 0, 0, 42)
+G2L["ModeLabel"].Text = "MODE: LOADSTRING"
+G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
+G2L["ModeLabel"].Font = Enum.Font.GothamBold
+G2L["ModeLabel"].TextSize = 10
+G2L["ModeLabel"].TextXAlignment = Enum.TextXAlignment.Right
+G2L["ModeLabel"].BackgroundTransparency = 1
+
 -- Code Box
 G2L["CodeBox"] = Instance.new("TextBox", G2L["Main"])
 G2L["CodeBox"].Size = UDim2.new(0.94, 0, 0, 90)
-G2L["CodeBox"].Position = UDim2.new(0.03, 0, 0, 44)
+G2L["CodeBox"].Position = UDim2.new(0.03, 0, 0, 58)
 G2L["CodeBox"].BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-G2L["CodeBox"].Text = "-- Écris ton script ici"
+G2L["CodeBox"].Text = "-- paste require() or loadstring script here"
 G2L["CodeBox"].TextColor3 = Color3.fromRGB(136, 136, 136)
 G2L["CodeBox"].Font = Enum.Font.Code
 G2L["CodeBox"].TextSize = 12
@@ -73,8 +84,8 @@ Instance.new("UICorner", G2L["CodeBox"]).CornerRadius = UDim.new(0, 4)
 
 -- Asset Image (centered)
 G2L["Asset"] = Instance.new("ImageLabel", G2L["Main"])
-G2L["Asset"].Size = UDim2.new(0, 120, 0, 120)
-G2L["Asset"].Position = UDim2.new(0.5, -60, 0, 144)
+G2L["Asset"].Size = UDim2.new(0, 110, 0, 110)
+G2L["Asset"].Position = UDim2.new(0.5, -55, 0, 155)
 G2L["Asset"].Image = "rbxassetid://342190201"
 G2L["Asset"].BackgroundTransparency = 1
 G2L["Asset"].ScaleType = Enum.ScaleType.Fit
@@ -95,7 +106,6 @@ local function createBtn(text, pos, size)
 end
 
 local iconSize = UDim2.new(0, 32, 0, 32)
-local btnY = UDim2.new(0, 0, 1, -42)
 
 local Exec  = createBtn("Execute", UDim2.new(0.03, 0, 1, -42), UDim2.new(0, 100, 0, 32))
 local Clear = createBtn("Clear",   UDim2.new(0.03, 104, 1, -42), UDim2.new(0, 100, 0, 32))
@@ -115,32 +125,118 @@ end
 G2L["Header"].InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true; dragStart = input.Position; startPos = G2L["Main"].Position
-        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
 G2L["Header"].InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then update(input) end
 end)
 
---- Functional Logic ---
-Exec.MouseButton1Click:Connect(function()
+--- Smart Execute Logic ---
+local function detectAndFire(text)
     local remote = game:GetService("ReplicatedStorage"):FindFirstChild("MangoRemote")
-    if remote then
-        remote:FireServer("REQUIRE", G2L["CodeBox"].Text)
-    else
+    if not remote then
         warn("Blueblurhub: Bridge not found!")
+        return
+    end
+
+    text = text:match("^%s*(.-)%s*$") -- trim whitespace
+
+    if text == "" or text:sub(1, 2) == "--" then
+        warn("Blueblurhub: Nothing to execute.")
+        return
+    end
+
+    -- Check if it's a plain require(id) call
+    local requireId = text:match("^require%((%d+)%)")
+    if requireId then
+        G2L["ModeLabel"].Text = "MODE: REQUIRE"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
+        remote:FireServer("REQUIRE", requireId)
+        return
+    end
+
+    -- Check if it's a require with a method call e.g. require(123456).Method("arg")
+    local requireIdMethod = text:match("^require%((%d+)%)")
+    if requireIdMethod then
+        G2L["ModeLabel"].Text = "MODE: REQUIRE"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
+        remote:FireServer("REQUIRE", requireIdMethod)
+        return
+    end
+
+    -- Check if it's a raw URL (for HTTP loadstring)
+    if text:sub(1, 4) == "http" then
+        G2L["ModeLabel"].Text = "MODE: LOADSTRING (URL)"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 255, 128)
+        remote:FireServer("LOADSTRING", text)
+        return
+    end
+
+    -- Everything else = raw Lua loadstring
+    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
+    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
+    remote:FireServer("LOADSTRING", text)
+end
+
+-- Auto-update mode label as user types
+G2L["CodeBox"]:GetPropertyChangedSignal("Text"):Connect(function()
+    local text = G2L["CodeBox"].Text:match("^%s*(.-)%s*$")
+    if text:match("^require%((%d+)%)") then
+        G2L["ModeLabel"].Text = "MODE: REQUIRE"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(255, 180, 0)
+    elseif text:sub(1, 4) == "http" then
+        G2L["ModeLabel"].Text = "MODE: LOADSTRING (URL)"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 255, 128)
+    else
+        G2L["ModeLabel"].Text = "MODE: LOADSTRING"
+        G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
     end
 end)
 
-Clear.MouseButton1Click:Connect(function() G2L["CodeBox"].Text = "" end)
-G2L["Close"].MouseButton1Click:Connect(function() G2L["1"]:Destroy() end)
+Exec.MouseButton1Click:Connect(function()
+    detectAndFire(G2L["CodeBox"].Text)
+end)
 
--- Eye toggle (hide/show GUI)
+Clear.MouseButton1Click:Connect(function()
+    G2L["CodeBox"].Text = ""
+    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
+    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
+end)
+
+G2L["Close"].MouseButton1Click:Connect(function()
+    G2L["1"]:Destroy()
+end)
+
+-- Eye: toggle GUI visibility
 local guiVisible = true
 Eye.MouseButton1Click:Connect(function()
     guiVisible = not guiVisible
     G2L["Main"].Visible = guiVisible
+end)
+
+-- Ref1: clear and reset
+Ref1.MouseButton1Click:Connect(function()
+    G2L["CodeBox"].Text = ""
+    G2L["ModeLabel"].Text = "MODE: LOADSTRING"
+    G2L["ModeLabel"].TextColor3 = Color3.fromRGB(0, 180, 255)
+end)
+
+-- Ref2: re-execute last script
+local lastScript = ""
+Ref2.MouseButton1Click:Connect(function()
+    if lastScript ~= "" then
+        detectAndFire(lastScript)
+    end
+end)
+
+Exec.MouseButton1Click:Connect(function()
+    lastScript = G2L["CodeBox"].Text
 end)
