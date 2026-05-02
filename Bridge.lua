@@ -1,6 +1,6 @@
 -- Mango SS: Server-Side Executor
 local Remote = Instance.new("RemoteEvent")
-Remote.Name = "MangoRemote"
+Remote.Name = "BlueBlurRemote"
 Remote.Parent = game:GetService("ReplicatedStorage")
 
 Remote.OnServerEvent:Connect(function(player, action, id)
